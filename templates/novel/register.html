@@ -1,0 +1,372 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>小说数据分析可视化系统 - 注册</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://at.alicdn.com/t/c/font_4031302_ozb7p18rf.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #5b2cff 0%, #2b1548 40%, #08051a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .page {
+      width: 960px;
+      max-width: 100%;
+      padding: 40px 32px 48px;
+      background: rgba(10, 5, 30, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page::before,
+    .page::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(50px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .page::before {
+      width: 260px;
+      height: 260px;
+      background: #ff4baf;
+      top: -120px;
+      right: -60px;
+    }
+
+    .page::after {
+      width: 220px;
+      height: 220px;
+      background: #6a5bff;
+      bottom: -120px;
+      left: -40px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header-title {
+      font-size: 28px;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .form {
+      margin: 32px auto 0;
+      max-width: 720px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .form-row {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(12, 9, 40, 0.95);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 0 14px;
+      transition: all 0.2s ease;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: #ff4baf;
+      box-shadow: 0 0 0 1px rgba(255, 75, 175, 0.45);
+      background: radial-gradient(circle at top left, rgba(255, 75, 175, 0.28), rgba(10, 5, 30, 0.98));
+    }
+
+    .input-icon {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 18px;
+      margin-right: 8px;
+    }
+
+    .input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      height: 44px;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .input::placeholder {
+      color: rgba(255, 255, 255, 0.38);
+    }
+
+    .helper-text {
+      margin-top: 6px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .btn-primary {
+      display: block;
+      width: 220px;
+      max-width: 50%;
+      margin: 32px auto 0;
+      height: 44px;
+      border-radius: 999px;
+      border: none;
+      font-size: 15px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      background: linear-gradient(90deg, #ff4baf, #ff7ddb);
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(255, 75, 175, 0.65);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(255, 75, 175, 0.85);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(255, 75, 175, 0.6);
+    }
+
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      left: -60%;
+      top: 0;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.2), transparent);
+      transform: skewX(-20deg);
+      opacity: 0;
+    }
+
+    .btn-primary.btn-loading::after {
+      animation: shine 1.2s infinite;
+      opacity: 1;
+    }
+
+    @keyframes shine {
+      0% {
+        transform: translateX(0) skewX(-20deg);
+      }
+      100% {
+        transform: translateX(260%) skewX(-20deg);
+      }
+    }
+
+    .bottom-text {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+      position: relative;
+      z-index: 2;
+    }
+
+    .error-msg {
+      margin-top: 12px;
+      min-height: 18px;
+      text-align: center;
+      font-size: 13px;
+      color: #ff9ac6;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: all 0.18s ease;
+    }
+
+    .error-msg.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 24px 12px;
+        align-items: flex-start;
+      }
+
+      .page {
+        padding: 28px 18px 32px;
+      }
+
+      .header-title {
+        font-size: 22px;
+      }
+
+      .btn-primary {
+        width: 100%;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <h1 class="header-title">小说数据分析可视化系统</h1>
+      <p class="header-subtitle">在此页面进行账号创建</p>
+    </header>
+
+    <form class="form" id="registerForm" autocomplete="off">
+      <div class="form-row">
+        <div class="form-label">用户名</div>
+        <div class="input-wrapper">
+          <i class="iconfont icon-user input-icon"></i>
+          <input class="input" type="text" name="username" placeholder="请输入您的用户名" />
+        </div>
+        <div class="helper-text">用户名长度3-20个字符，支持字母、数字、下划线。</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">密码</div>
+        <div class="input-wrapper">
+          <i class="iconfont icon-lock input-icon"></i>
+          <input class="input" type="password" name="password" placeholder="请输入您的密码" />
+        </div>
+        <div class="helper-text">密码长度至少6位，建议使用字母数字组合。</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">确认密码</div>
+        <div class="input-wrapper">
+          <i class="iconfont icon-check-circle input-icon"></i>
+          <input class="input" type="password" name="confirmPassword" placeholder="请再次输入您的密码" />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary" id="registerBtn">注册</button>
+
+      <div class="error-msg" id="registerError"></div>
+
+      <div class="bottom-text">
+        已经创建了账号？
+        <a class="link" href="{% url 'login' %}">返回登录</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // 真实注册逻辑，调用后端API
+    (function () {
+      const form = document.getElementById("registerForm");
+      const errorBox = document.getElementById("registerError");
+      const btn = document.getElementById("registerBtn");
+      const API_BASE_URL = '/api/novel';
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        errorBox.classList.remove("visible");
+        errorBox.textContent = "";
+
+        const username = form.username.value.trim();
+        const password = form.password.value.trim();
+        const confirmPassword = form.confirmPassword.value.trim();
+
+        // 前端验证
+        if (!username || !password || !confirmPassword) {
+          showError("请完整填写用户名、密码和确认密码");
+          return;
+        }
+
+        if (username.length < 3 || username.length > 20) {
+          showError("用户名长度必须在3-20个字符之间");
+          return;
+        }
+
+        if (password.length < 6) {
+          showError("密码长度至少为 6 位");
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          showError("两次输入的密码不一致");
+          return;
+        }
+
+        btn.classList.add("btn-loading");
+        btn.disabled = true;
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              username: username,
+              password: password
+            })
+          });
+
+          const result = await response.json();
+          btn.classList.remove("btn-loading");
+          btn.disabled = false;
+
+          if (result.code === 200) {
+            alert("注册成功！请登录");
+            window.location.href = "{% url 'login' %}";
+          } else {
+            showError(result.message || "注册失败");
+          }
+        } catch (error) {
+          btn.classList.remove("btn-loading");
+          btn.disabled = false;
+          showError("网络错误，请检查服务器是否启动");
+          console.error("注册错误:", error);
+        }
+      });
+
+      function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.classList.add("visible");
+      }
+    })();
+  </script>
+</body>
+</html>
+
+
+
+
+
+

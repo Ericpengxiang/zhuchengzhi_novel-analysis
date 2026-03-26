@@ -1,0 +1,395 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 导航首页{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">小说数据分析可视化系统</div>
+        <div class="main-header-right">
+          <span>欢迎回来，<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <!-- 第一行：折线图 + 漏斗图 + 环形图 -->
+        <div class="grid-3">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">TOP作者赞赏连更天数分析</div>
+                <div class="panel-subtitle">展示不同作者的打赏与连更天数趋势。</div>
+              </div>
+            </div>
+            <div id="chart-line" class="chart">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">月票TOP分析</div>
+                <div class="panel-subtitle">曝光 → 点击 → 阅读 → 书架 → 月票的转化漏斗。</div>
+              </div>
+            </div>
+            <div id="chart-funnel" class="chart">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">类型阅读量分析</div>
+                <div class="panel-subtitle">各类型阅读量占比情况。</div>
+              </div>
+            </div>
+            <div id="chart-pie" class="chart">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第二行：左表格 + 右柱状+折线图 -->
+        <div class="grid-2 mt-4">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">赞赏TOP5作者</div>
+              </div>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>作者</th>
+                  <th>作品数</th>
+                  <th>创作字数</th>
+                  <th>连更天数</th>
+                  <th class="text-right">打赏（元）</th>
+                </tr>
+              </thead>
+              <tbody id="author-table-body">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">TOP小说阅读量鲜花数分析</div>
+              </div>
+            </div>
+            <div id="chart-bar" class="chart-large">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    let lineChart, funnelChart, pieChart, barChart;
+
+    // 加载首页统计数据
+    async function loadDashboardStats() {
+      try {
+        const result = await getDashboardStats();
+        
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+          
+          // 渲染折线图
+          renderLineChart(data.line_chart || {});
+          
+          // 渲染漏斗图
+          renderFunnelChart(data.funnel || {});
+          
+          // 渲染饼图
+          renderPieChart(data.pie_chart || {});
+          
+          // 渲染柱状图
+          renderBarChart(data.bar_chart || {});
+          
+          // 渲染作者表格
+          renderAuthorTable(data.top_authors_table || []);
+        } else {
+          console.error('加载首页统计数据失败:', result.message);
+          document.getElementById('chart-line').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+        }
+      } catch (error) {
+        console.error('加载首页统计数据失败:', error);
+        document.getElementById('chart-line').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+      }
+    }
+
+    // 渲染折线图
+    function renderLineChart(data) {
+      lineChart = echarts.init(document.getElementById('chart-line'));
+      
+      if (!data.authors || data.authors.length === 0) {
+        document.getElementById('chart-line').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      lineChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: {
+          data: ['打赏（元）', '连更天数'],
+          textStyle: { color: '#ffffff' }
+        },
+        grid: { left: '3%', right: '4%', bottom: '6%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: data.authors.map(name => name.length > 8 ? name.slice(0, 8) + '...' : name),
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { color: '#b1b7e3' }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: '打赏（元）',
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+          },
+          {
+            type: 'value',
+            name: '连更天数',
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { show: false }
+          }
+        ],
+        series: [
+          {
+            name: '打赏（元）',
+            type: 'line',
+            smooth: true,
+            yAxisIndex: 0,
+            data: data.rewards || [],
+            itemStyle: { color: '#ff7ddb' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(255,125,219,0.45)' },
+                { offset: 1, color: 'rgba(255,125,219,0.02)' }
+              ])
+            }
+          },
+          {
+            name: '连更天数',
+            type: 'line',
+            smooth: true,
+            yAxisIndex: 1,
+            data: data.continuous_days || [],
+            itemStyle: { color: '#6e9bff' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(110,155,255,0.4)' },
+                { offset: 1, color: 'rgba(110,155,255,0.02)' }
+              ])
+            }
+          }
+        ]
+      });
+    }
+
+    // 渲染漏斗图
+    function renderFunnelChart(data) {
+      funnelChart = echarts.init(document.getElementById('chart-funnel'));
+      
+      if (!data.data || data.data.length === 0) {
+        document.getElementById('chart-funnel').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      funnelChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}<br/>数值：{c}%' },
+        series: [
+          {
+            name: '转化漏斗',
+            type: 'funnel',
+            left: '10%',
+            top: 20,
+            bottom: 20,
+            width: '80%',
+            min: 0,
+            max: 100,
+            sort: 'descending',
+            gap: 6,
+            label: {
+              show: true,
+              color: '#ffffff',
+              formatter: '{b}: {c}%'
+            },
+            itemStyle: {
+              borderColor: '#07071a',
+              borderWidth: 2
+            },
+            data: data.data
+          }
+        ]
+      });
+    }
+
+    // 渲染饼图
+    function renderPieChart(data) {
+      pieChart = echarts.init(document.getElementById('chart-pie'));
+      
+      if (!data.categories || data.categories.length === 0) {
+        document.getElementById('chart-pie').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      pieChart.setOption({
+        tooltip: { 
+          trigger: 'item',
+          formatter: '{b}<br/>阅读量: {c} ({d}%)'
+        },
+        legend: {
+          bottom: 0,
+          textStyle: { color: '#ffffff' }
+        },
+        series: [
+          {
+            type: 'pie',
+            radius: ['40%', '65%'],
+            center: ['50%', '46%'],
+            itemStyle: {
+              borderRadius: 6,
+              borderColor: '#07071a',
+              borderWidth: 2
+            },
+            label: { color: '#ffffff' },
+            data: data.categories
+          }
+        ]
+      });
+    }
+
+    // 渲染柱状图
+    function renderBarChart(data) {
+      barChart = echarts.init(document.getElementById('chart-bar'));
+      
+      if (!data.novels || data.novels.length === 0) {
+        document.getElementById('chart-bar').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      barChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: {
+          data: ['阅读量', '鲜花数'],
+          textStyle: { color: '#ffffff' }
+        },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: data.novels.map(title => title.length > 10 ? title.slice(0, 10) + '...' : title),
+          axisLabel: {
+            color: '#b1b7e3',
+            rotate: 30,
+            formatter: function(val) {
+              return val.length > 8 ? val.slice(0, 8) + '…' : val;
+            }
+          },
+          axisLine: { lineStyle: { color: '#6c7bb4' } }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: '阅读量',
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+            axisLabel: {
+              formatter: function(value) {
+                if (value >= 10000) {
+                  return (value / 10000).toFixed(1) + '万';
+                }
+                return value;
+              }
+            }
+          },
+          {
+            type: 'value',
+            name: '鲜花数',
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { show: false },
+            axisLabel: {
+              formatter: function(value) {
+                if (value >= 10000) {
+                  return (value / 10000).toFixed(1) + '万';
+                }
+                return value;
+              }
+            }
+          }
+        ],
+        series: [
+          {
+            name: '阅读量',
+            type: 'bar',
+            data: data.reads || [],
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#6f9dff' },
+                { offset: 1, color: '#3a55ff' }
+              ])
+            }
+          },
+          {
+            name: '鲜花数',
+            type: 'line',
+            yAxisIndex: 1,
+            smooth: true,
+            data: data.flowers || [],
+            itemStyle: { color: '#ff7ddb' },
+            lineStyle: { color: '#ff7ddb' }
+          }
+        ]
+      });
+    }
+
+    // 渲染作者表格
+    function renderAuthorTable(authors) {
+      const tbody = document.getElementById('author-table-body');
+      
+      if (!authors || authors.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = authors.map(author => `
+        <tr>
+          <td>${author.rank}</td>
+          <td>${author.author}</td>
+          <td>${author.works_count}</td>
+          <td>${(author.total_words || 0).toLocaleString()}</td>
+          <td>${author.continue_days || 0}</td>
+          <td class="text-right">${(author.total_reward || 0).toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      if (lineChart) lineChart.resize();
+      if (funnelChart) funnelChart.resize();
+      if (pieChart) pieChart.resize();
+      if (barChart) barChart.resize();
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadDashboardStats();
+    });
+  </script>
+{% endblock %}

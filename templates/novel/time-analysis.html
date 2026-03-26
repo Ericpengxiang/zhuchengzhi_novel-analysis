@@ -1,0 +1,268 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 时间分析{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">时间分析</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">月度小说数评分分析</div>
+              <div class="panel-subtitle">按月份统计小说数量与平均评分的双轴趋势图。</div>
+            </div>
+          </div>
+          <div id="chart-month-count" class="chart-large">
+            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">月度阅读量分析</div>
+                <div class="panel-subtitle">不同月份的阅读量对比。</div>
+              </div>
+            </div>
+            <div id="chart-month-read" class="chart-large">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">年度阅读量分析</div>
+                <div class="panel-subtitle">跨年度的阅读量趋势，用于观察整体增长。</div>
+              </div>
+            </div>
+            <div id="chart-year-read" class="chart-large">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    let monthChart, monthReadChart, yearReadChart;
+
+    // 加载时间分析数据
+    async function loadTimeAnalysis() {
+      try {
+        const result = await getTimeAnalysis();
+        
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+          
+          // 渲染月度小说数评分图
+          renderMonthCountChart(data.months || [], data.novel_counts || [], data.avg_scores || []);
+          
+          // 渲染月度阅读量图
+          renderMonthReadChart(data.months || [], data.monthly_reads || []);
+          
+          // 渲染年度阅读量图
+          renderYearReadChart(data.years || [], data.yearly_reads || []);
+        } else {
+          console.error('加载时间分析数据失败:', result.message);
+          document.getElementById('chart-month-count').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+        }
+      } catch (error) {
+        console.error('加载时间分析数据失败:', error);
+        document.getElementById('chart-month-count').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+      }
+    }
+
+    // 渲染月度小说数评分图
+    function renderMonthCountChart(months, counts, scores) {
+      monthChart = echarts.init(document.getElementById('chart-month-count'));
+      
+      if (!months || months.length === 0) {
+        document.getElementById('chart-month-count').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      monthChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: {
+          data: ['小说数量', '评分'],
+          textStyle: { color: '#ffffff' }
+        },
+        grid: { left: '4%', right: '4%', bottom: '6%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: months,
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { color: '#b1b7e3' }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: '小说数量',
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+          },
+          {
+            type: 'value',
+            name: '评分',
+            min: 0,
+            max: 10,
+            axisLine: { lineStyle: { color: '#6c7bb4' } },
+            splitLine: { show: false }
+          }
+        ],
+        series: [
+          {
+            name: '小说数量',
+            type: 'bar',
+            data: counts,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#6f9dff' },
+                { offset: 1, color: '#3a55ff' }
+              ])
+            }
+          },
+          {
+            name: '评分',
+            type: 'line',
+            yAxisIndex: 1,
+            smooth: true,
+            data: scores,
+            itemStyle: { color: '#ffce6b' },
+            lineStyle: { color: '#ffce6b' }
+          }
+        ]
+      });
+    }
+
+    // 渲染月度阅读量图
+    function renderMonthReadChart(months, reads) {
+      monthReadChart = echarts.init(document.getElementById('chart-month-read'));
+      
+      if (!months || months.length === 0) {
+        document.getElementById('chart-month-read').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      monthReadChart.setOption({
+        tooltip: { 
+          trigger: 'axis',
+          formatter: function(params) {
+            const value = params[0].value;
+            return params[0].name + '<br/>阅读量: ' + (value >= 10000 ? (value / 10000).toFixed(1) + '万' : value);
+          }
+        },
+        grid: { left: '4%', right: '4%', bottom: '8%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: months,
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { color: '#b1b7e3' }
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+          axisLabel: {
+            formatter: function(value) {
+              if (value >= 10000) {
+                return (value / 10000).toFixed(1) + '万';
+              }
+              return value;
+            }
+          }
+        },
+        series: [
+          {
+            type: 'bar',
+            data: reads,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#ff7ddb' },
+                { offset: 1, color: '#ff4baf' }
+              ])
+            }
+          }
+        ]
+      });
+    }
+
+    // 渲染年度阅读量图
+    function renderYearReadChart(years, reads) {
+      yearReadChart = echarts.init(document.getElementById('chart-year-read'));
+      
+      if (!years || years.length === 0) {
+        document.getElementById('chart-year-read').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      yearReadChart.setOption({
+        tooltip: { 
+          trigger: 'axis',
+          formatter: function(params) {
+            const value = params[0].value;
+            return params[0].name + '<br/>阅读量: ' + (value >= 10000 ? (value / 10000).toFixed(1) + '万' : value);
+          }
+        },
+        grid: { left: '4%', right: '4%', bottom: '8%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: years,
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { color: '#b1b7e3' }
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+          axisLabel: {
+            formatter: function(value) {
+              if (value >= 10000) {
+                return (value / 10000).toFixed(1) + '万';
+              }
+              return value;
+            }
+          }
+        },
+        series: [
+          {
+            type: 'bar',
+            data: reads,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: '#36e0ff' },
+                { offset: 1, color: '#1ca5ff' }
+              ])
+            }
+          }
+        ]
+      });
+    }
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      if (monthChart) monthChart.resize();
+      if (monthReadChart) monthReadChart.resize();
+      if (yearReadChart) yearReadChart.resize();
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadTimeAnalysis();
+    });
+  </script>
+{% endblock %}

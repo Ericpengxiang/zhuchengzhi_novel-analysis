@@ -1,0 +1,25 @@
+由于网络无法访问 cdn.jsdelivr.net，需要手动下载 ECharts 文件。
+
+请按以下步骤操作：
+
+1. 在浏览器中访问以下任一链接下载 echarts.min.js：
+   - https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js
+   - 或者：https://unpkg.com/echarts@5/dist/echarts.min.js
+   - 或者：https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js
+
+2. 下载后，将文件重命名为 echarts.min.js
+
+3. 将文件放到此目录：小说系统/mack/static/js/echarts.min.js
+
+4. 刷新浏览器页面即可看到图表
+
+或者，如果你有其他可用的CDN，可以修改 templates/novel/dashboard.html 中的：
+  <script src="{% static 'js/echarts.min.js' %}"></script>
+改为：
+  <script src="你的CDN地址"></script>
+
+
+
+
+
+

@@ -1,0 +1,222 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 小说信息分析{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">小说信息分析</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title" id="readRangeTitle">小说信息阅读量区间分析</div>
+              <div class="panel-subtitle">不同阅读量区间内，所选类型小说的作品数量。</div>
+            </div>
+            <div>
+              <select id="novelTypeSelect" class="input" style="width:220px;">
+                <option value="">全部类型</option>
+              </select>
+            </div>
+          </div>
+          <div id="chart-read-range" class="chart-large">
+            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+          </div>
+        </div>
+
+        <div class="panel mt-4">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title" id="wordChartTitle">小说信息文字数区间分析</div>
+              <div class="panel-subtitle">不同类型小说在各文字数区间内的样本数量，可通过缩放查看重点区间。</div>
+            </div>
+          </div>
+          <div id="chart-word-range" class="chart-large">
+            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    let readRangeChart, wordRangeChart;
+    let categories = [];
+    let currentCategory = '';
+
+    // 加载小说信息分析数据
+    async function loadNovelAnalysis(category = '') {
+      try {
+        const result = await getNovelAnalysis(category);
+        
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+          
+          // 更新分类下拉框
+          if (categories.length === 0 && data.categories) {
+            categories = data.categories;
+            const select = document.getElementById('novelTypeSelect');
+            categories.forEach(cat => {
+              const option = document.createElement('option');
+              option.value = cat;
+              option.textContent = cat;
+              select.appendChild(option);
+            });
+          }
+          
+          // 渲染阅读量区间图
+          renderReadRangeChart(data.read_ranges || [], data.read_range_labels || []);
+          
+          // 渲染字数区间图
+          renderWordRangeChart(data.word_ranges || {}, data.word_range_labels || []);
+          
+          // 更新标题
+          const categoryText = category || '全部类型';
+          document.getElementById('readRangeTitle').textContent = categoryText + ' 小说信息阅读量区间分析';
+          document.getElementById('wordChartTitle').textContent = '小说信息文字数区间分析（当前类型：' + categoryText + '）';
+        } else {
+          console.error('加载小说信息分析数据失败:', result.message);
+          document.getElementById('chart-read-range').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+        }
+      } catch (error) {
+        console.error('加载小说信息分析数据失败:', error);
+        document.getElementById('chart-read-range').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+      }
+    }
+
+    // 渲染阅读量区间图
+    function renderReadRangeChart(data, labels) {
+      readRangeChart = echarts.init(document.getElementById('chart-read-range'));
+      
+      if (!data || data.length === 0) {
+        document.getElementById('chart-read-range').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      readRangeChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: '4%', right: '4%', bottom: '6%', containLabel: true },
+        xAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+        },
+        yAxis: {
+          type: 'category',
+          data: labels.slice().reverse(),
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { color: '#b1b7e3' }
+        },
+        series: [
+          {
+            type: 'bar',
+            data: data.slice().reverse(),
+            barWidth: 18,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                { offset: 0, color: '#ff7ddb' },
+                { offset: 1, color: '#b83bff' }
+              ])
+            },
+            label: {
+              show: true,
+              position: 'right',
+              color: '#ffffff'
+            }
+          }
+        ]
+      });
+    }
+
+    // 渲染字数区间图
+    function renderWordRangeChart(wordRanges, labels) {
+      wordRangeChart = echarts.init(document.getElementById('chart-word-range'));
+      
+      if (!wordRanges || Object.keys(wordRanges).length === 0) {
+        document.getElementById('chart-word-range').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      const categoryNames = Object.keys(wordRanges);
+      const seriesData = [];
+      
+      // 为每个字数区间创建一个系列
+      labels.forEach((label, idx) => {
+        const data = categoryNames.map(cat => wordRanges[cat][idx] || 0);
+        seriesData.push({
+          name: label,
+          type: 'bar',
+          stack: 'total',
+          data: data,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: ['#6f9dff', '#3a55ff', '#ff7ddb', '#b83bff', '#36e0ff'][idx % 5] },
+              { offset: 1, color: ['#3a55ff', '#1a2eff', '#ff4baf', '#8b2fff', '#1ca5ff'][idx % 5] }
+            ])
+          }
+        });
+      });
+      
+      wordRangeChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: {
+          data: labels,
+          textStyle: { color: '#ffffff' },
+          bottom: 0
+        },
+        grid: { left: '4%', right: '4%', bottom: '15%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: categoryNames,
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { 
+            color: '#b1b7e3',
+            rotate: categoryNames.length > 6 ? 30 : 0
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+        },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: false,
+            moveOnMouseMove: true,
+            moveOnMouseWheel: true
+          }
+        ],
+        series: seriesData
+      });
+    }
+
+    // 分类选择变化
+    document.getElementById('novelTypeSelect').addEventListener('change', function() {
+      currentCategory = this.value;
+      loadNovelAnalysis(currentCategory);
+    });
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      if (readRangeChart) readRangeChart.resize();
+      if (wordRangeChart) wordRangeChart.resize();
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadNovelAnalysis();
+    });
+  </script>
+{% endblock %}

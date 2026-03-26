@@ -1,0 +1,774 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>小说数据分析可视化系统{% block title %}{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://at.alicdn.com/t/c/font_4031302_ozb7p18rf.css" />
+  <link rel="stylesheet" href="{% static 'css/common.css' %}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="app-root">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">小说数据分析可视化系统</div>
+      </div>
+      <ul class="nav-list">
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+            <i class="iconfont icon-shouye"></i>
+            <span>首页</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+            <i class="iconfont icon-user"></i>
+            <span>个人信息修改</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}" href="{% url 'favorites' %}">
+            <i class="iconfont icon-star"></i>
+            <span>用户收藏</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'data_overview' %}active{% endif %}" href="{% url 'data_overview' %}">
+            <i class="iconfont icon-table"></i>
+            <span>数据浏览</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if 'type_analysis' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'type_analysis_1' %}">
+            <i class="iconfont icon-fenlei"></i>
+            <span>类型分析</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'novel_analysis' %}active{% endif %}" href="{% url 'novel_analysis' %}">
+            <i class="iconfont icon-book"></i>
+            <span>小说信息分析</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'user_analysis' %}active{% endif %}" href="{% url 'user_analysis' %}">
+            <i class="iconfont icon-usergroup"></i>
+            <span>用户分析</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'time_analysis' %}active{% endif %}" href="{% url 'time_analysis' %}">
+            <i class="iconfont icon-time"></i>
+            <span>时间分析</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'wordcloud' %}active{% endif %}" href="{% url 'wordcloud' %}">
+            <i class="iconfont icon-cloud"></i>
+            <span>小说词云图</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'recommend' %}active{% endif %}" href="{% url 'recommend' %}">
+            <i class="iconfont icon-like"></i>
+            <span>小说推荐</span>
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+      </div>
+    </aside>
+
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- 登录弹窗 -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-icon">🔐</div>
+        <h3 class="modal-title">登录</h3>
+      </div>
+      <form id="loginForm" class="modal-form">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-label">用户名</div>
+            <div class="input-wrapper">
+              <i class="iconfont icon-user input-icon"></i>
+              <input class="input" type="text" name="username" placeholder="请输入用户名" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">密码</div>
+            <div class="input-wrapper">
+              <i class="iconfont icon-lock input-icon"></i>
+              <input class="input" type="password" name="password" placeholder="请输入密码" required />
+            </div>
+          </div>
+          <div class="form-footer">
+            <label class="checkbox">
+              <input type="checkbox" id="rememberMe" />
+              <span class="checkbox-input">
+                <i class="iconfont icon-check"></i>
+              </span>
+              <span>记住我</span>
+            </label>
+          </div>
+          <div class="error-msg" id="loginError"></div>
+          <div class="bottom-text">
+            还未创建账号？
+            <a class="link" href="javascript:void(0)" onclick="switchToRegister()">点击注册</a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-btn modal-btn-cancel" onclick="closeLoginModal()">取消</button>
+          <button type="submit" class="modal-btn modal-btn-confirm" id="loginBtn">登录</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 注册弹窗 -->
+  <div id="registerModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-icon">📝</div>
+        <h3 class="modal-title">注册</h3>
+      </div>
+      <form id="registerForm" class="modal-form">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-label">用户名</div>
+            <div class="input-wrapper">
+              <i class="iconfont icon-user input-icon"></i>
+              <input class="input" type="text" name="username" placeholder="请输入您的用户名" required />
+            </div>
+            <div class="helper-text">用户名长度3-20个字符，支持字母、数字、下划线。</div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">密码</div>
+            <div class="input-wrapper">
+              <i class="iconfont icon-lock input-icon"></i>
+              <input class="input" type="password" name="password" placeholder="请输入您的密码" required />
+            </div>
+            <div class="helper-text">密码长度至少6位，建议使用字母数字组合。</div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">确认密码</div>
+            <div class="input-wrapper">
+              <i class="iconfont icon-check-circle input-icon"></i>
+              <input class="input" type="password" name="confirmPassword" placeholder="请再次输入您的密码" required />
+            </div>
+          </div>
+          <div class="error-msg" id="registerError"></div>
+          <div class="bottom-text">
+            已经创建了账号？
+            <a class="link" href="javascript:void(0)" onclick="switchToLogin()">返回登录</a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="modal-btn modal-btn-cancel" onclick="closeRegisterModal()">取消</button>
+          <button type="submit" class="modal-btn modal-btn-confirm" id="registerBtn">注册</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <style>
+    /* 弹窗样式 - 与用户收藏确认弹窗一致 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-dialog {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 12px;
+      padding: 0;
+      min-width: 400px;
+      max-width: 90%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 75, 175, 0.3);
+      animation: slideUp 0.3s ease;
+      overflow: hidden;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #ff4baf, #b83bff);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
+    }
+
+    .modal-body {
+      padding: 24px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 15px;
+      line-height: 1.6;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      min-width: 80px;
+    }
+
+    .modal-btn-cancel {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .modal-btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .modal-btn-confirm {
+      background: linear-gradient(135deg, #ff4baf, #b83bff);
+      color: #fff;
+    }
+
+    .modal-btn-confirm:hover {
+      background: linear-gradient(135deg, #ff5bbf, #c84bff);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 75, 175, 0.3);
+    }
+
+    .modal-btn-confirm:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .form-row {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.82);
+      display: block;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(12, 9, 40, 0.95);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 0 14px;
+      transition: all 0.2s ease;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: #ff4baf;
+      box-shadow: 0 0 0 1px rgba(255, 75, 175, 0.45);
+      background: radial-gradient(circle at top left, rgba(255, 75, 175, 0.28), rgba(10, 5, 30, 0.98));
+    }
+
+    .input-icon {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 18px;
+      margin-right: 8px;
+    }
+
+    .input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      height: 44px;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .input::placeholder {
+      color: rgba(255, 255, 255, 0.38);
+    }
+
+    .helper-text {
+      margin-top: 6px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .form-footer {
+      margin-top: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 13px;
+    }
+
+    .checkbox {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-input {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 2px;
+    }
+
+    .checkbox-input i {
+      font-size: 12px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.18s ease;
+    }
+
+    input[type="checkbox"]:checked + .checkbox-input i {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    input[type="checkbox"] {
+      display: none;
+    }
+
+    .btn-primary {
+      display: block;
+      width: 100%;
+      margin: 24px auto 0;
+      height: 44px;
+      border-radius: 999px;
+      border: none;
+      font-size: 15px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      background: linear-gradient(90deg, #ff4baf, #ff7ddb);
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(255, 75, 175, 0.65);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(255, 75, 175, 0.85);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(255, 75, 175, 0.6);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      left: -60%;
+      top: 0;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.2), transparent);
+      transform: skewX(-20deg);
+      opacity: 0;
+    }
+
+    .btn-primary.btn-loading::after {
+      animation: shine 1.2s infinite;
+      opacity: 1;
+    }
+
+    @keyframes shine {
+      0% {
+        transform: translateX(0) skewX(-20deg);
+      }
+      100% {
+        transform: translateX(260%) skewX(-20deg);
+      }
+    }
+
+    .error-msg {
+      margin-top: 12px;
+      min-height: 18px;
+      text-align: center;
+      font-size: 13px;
+      color: #ff9ac6;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: all 0.18s ease;
+    }
+
+    .error-msg.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .bottom-text {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .link {
+      color: #ff4baf;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .link:hover {
+      color: #ff8cd0;
+    }
+
+    /* 登录/注册按钮样式 */
+    .auth-buttons {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .auth-btn {
+      padding: 8px 20px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .auth-btn-login {
+      background: linear-gradient(90deg, #ff4baf, #ff7ddb);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(255, 75, 175, 0.4);
+    }
+
+    .auth-btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(255, 75, 175, 0.6);
+    }
+
+    .auth-btn-register {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .auth-btn-register:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+
+  <script>
+    // 登录弹窗控制
+    function showLoginModal() {
+      document.getElementById('loginModal').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.remove('show');
+      document.body.style.overflow = '';
+      document.getElementById('loginForm').reset();
+      const errorBox = document.getElementById('loginError');
+      if (errorBox) {
+        errorBox.classList.remove('visible');
+        errorBox.textContent = '';
+      }
+    }
+
+    // 注册弹窗控制
+    function showRegisterModal() {
+      document.getElementById('registerModal').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeRegisterModal() {
+      document.getElementById('registerModal').classList.remove('show');
+      document.body.style.overflow = '';
+      document.getElementById('registerForm').reset();
+      const errorBox = document.getElementById('registerError');
+      if (errorBox) {
+        errorBox.classList.remove('visible');
+        errorBox.textContent = '';
+      }
+    }
+
+    // 切换弹窗
+    function switchToRegister() {
+      closeLoginModal();
+      setTimeout(() => showRegisterModal(), 300);
+    }
+
+    function switchToLogin() {
+      closeRegisterModal();
+      setTimeout(() => showLoginModal(), 300);
+    }
+
+    // 点击弹窗外部关闭
+    document.getElementById('loginModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeLoginModal();
+      }
+    });
+
+    document.getElementById('registerModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeRegisterModal();
+      }
+    });
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeLoginModal();
+        closeRegisterModal();
+      }
+    });
+
+    // 登录表单提交
+    (function() {
+      const loginForm = document.getElementById('loginForm');
+      if (!loginForm) return;
+
+      loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errorBox = document.getElementById('loginError');
+        const btn = document.getElementById('loginBtn');
+        errorBox.classList.remove('visible');
+        errorBox.textContent = '';
+
+        const username = loginForm.username.value.trim();
+        const password = loginForm.password.value.trim();
+        const rememberMe = document.getElementById('rememberMe').checked;
+
+        if (!username || !password) {
+          errorBox.textContent = '请输入用户名和密码';
+          errorBox.classList.add('visible');
+          return;
+        }
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '登录中...';
+
+        try {
+          const response = await fetch('/api/novel/auth/login/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              username: username,
+              password: password,
+              remember_me: rememberMe
+            })
+          });
+
+          const result = await response.json();
+          btn.disabled = false;
+          btn.textContent = originalText;
+
+          if (result.code === 200) {
+            closeLoginModal();
+            // 刷新页面以更新用户信息
+            window.location.reload();
+          } else {
+            errorBox.textContent = result.message || '登录失败';
+            errorBox.classList.add('visible');
+          }
+        } catch (error) {
+          btn.disabled = false;
+          btn.textContent = '登录';
+          errorBox.textContent = '网络错误，请检查服务器是否启动';
+          errorBox.classList.add('visible');
+          console.error('登录错误:', error);
+        }
+      });
+    })();
+
+    // 注册表单提交
+    (function() {
+      const registerForm = document.getElementById('registerForm');
+      if (!registerForm) return;
+
+      registerForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errorBox = document.getElementById('registerError');
+        const btn = document.getElementById('registerBtn');
+        errorBox.classList.remove('visible');
+        errorBox.textContent = '';
+
+        const username = registerForm.username.value.trim();
+        const password = registerForm.password.value.trim();
+        const confirmPassword = registerForm.confirmPassword.value.trim();
+
+        if (!username || !password || !confirmPassword) {
+          errorBox.textContent = '请完整填写用户名、密码和确认密码';
+          errorBox.classList.add('visible');
+          return;
+        }
+
+        if (username.length < 3 || username.length > 20) {
+          errorBox.textContent = '用户名长度必须在3-20个字符之间';
+          errorBox.classList.add('visible');
+          return;
+        }
+
+        if (password.length < 6) {
+          errorBox.textContent = '密码长度至少为6位';
+          errorBox.classList.add('visible');
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          errorBox.textContent = '两次输入的密码不一致';
+          errorBox.classList.add('visible');
+          return;
+        }
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '注册中...';
+
+        try {
+          const response = await fetch('/api/novel/auth/register/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              username: username,
+              password: password
+            })
+          });
+
+          const result = await response.json();
+          btn.disabled = false;
+          btn.textContent = originalText;
+
+          if (result.code === 200) {
+            alert('注册成功！请登录');
+            switchToLogin();
+          } else {
+            errorBox.textContent = result.message || '注册失败';
+            errorBox.classList.add('visible');
+          }
+        } catch (error) {
+          btn.disabled = false;
+          btn.textContent = '注册';
+          errorBox.textContent = '网络错误，请检查服务器是否启动';
+          errorBox.classList.add('visible');
+          console.error('注册错误:', error);
+        }
+      });
+    })();
+  </script>
+
+  <script src="{% static 'js/common.js' %}"></script>
+  <script src="{% static 'js/api.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+
+
+
+

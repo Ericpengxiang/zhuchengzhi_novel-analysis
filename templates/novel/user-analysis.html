@@ -1,0 +1,182 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 用户分析{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">用户分析</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">各类型作者创作字数 MAX 分析</div>
+                <div class="panel-subtitle">展示在不同类型下，单作者创作字数最高的分布情况。</div>
+              </div>
+            </div>
+            <div id="chart-user-pie" class="chart-large">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">连更天数作者 TOP10 分析</div>
+                <div class="panel-subtitle">根据连载天数排序，展示 TOP10 作者连更趋势。</div>
+              </div>
+            </div>
+            <div id="chart-user-line" class="chart-large">
+              <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    let userPieChart, userLineChart;
+
+    // 加载用户分析数据
+    async function loadUserAnalysis() {
+      try {
+        const result = await getUserAnalysis();
+        
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+          
+          // 渲染饼图
+          renderPieChart(data.author_max_words || []);
+          
+          // 渲染折线图
+          renderLineChart(data.update_authors || [], data.update_days || []);
+        } else {
+          console.error('加载用户分析数据失败:', result.message);
+          document.getElementById('chart-user-pie').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+        }
+      } catch (error) {
+        console.error('加载用户分析数据失败:', error);
+        document.getElementById('chart-user-pie').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+      }
+    }
+
+    // 渲染饼图
+    function renderPieChart(data) {
+      userPieChart = echarts.init(document.getElementById('chart-user-pie'));
+      
+      if (!data || data.length === 0) {
+        document.getElementById('chart-user-pie').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      userPieChart.setOption({
+        tooltip: { 
+          trigger: 'item',
+          formatter: '{b}<br/>字数: {c} ({d}%)'
+        },
+        legend: {
+          bottom: 0,
+          textStyle: { color: '#ffffff' },
+          formatter: function(name) {
+            return name.length > 12 ? name.slice(0, 12) + '...' : name;
+          }
+        },
+        series: [
+          {
+            type: 'pie',
+            radius: ['40%', '65%'],
+            center: ['50%', '45%'],
+            label: { 
+              color: '#ffffff',
+              formatter: '{b}\n{d}%'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: 14,
+                fontWeight: 'bold'
+              }
+            },
+            data: data
+          }
+        ]
+      });
+    }
+
+    // 渲染折线图
+    function renderLineChart(authors, days) {
+      userLineChart = echarts.init(document.getElementById('chart-user-line'));
+      
+      if (!authors || authors.length === 0) {
+        document.getElementById('chart-user-line').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+        return;
+      }
+      
+      userLineChart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: '4%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: authors.map(a => a.length > 8 ? a.slice(0, 8) + '...' : a),
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          axisLabel: { 
+            color: '#b1b7e3',
+            rotate: 30
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: '连更天数',
+          axisLine: { lineStyle: { color: '#6c7bb4' } },
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+        },
+        series: [
+          {
+            name: '连更天数',
+            type: 'line',
+            smooth: true,
+            data: days,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#36e0ff' },
+            lineStyle: { color: '#36e0ff' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(54,224,255,0.4)' },
+                { offset: 1, color: 'rgba(54,224,255,0.02)' }
+              ])
+            },
+            label: {
+              show: true,
+              position: 'top',
+              color: '#ffffff',
+              formatter: '{c}'
+            }
+          }
+        ]
+      });
+    }
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      if (userPieChart) userPieChart.resize();
+      if (userLineChart) userLineChart.resize();
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadUserAnalysis();
+    });
+  </script>
+{% endblock %}

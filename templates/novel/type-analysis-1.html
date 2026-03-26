@@ -1,0 +1,313 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 类型分析（总体）{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">类型分析</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">各类型阅读量 / 鲜花量统计分析</div>
+              <div class="panel-subtitle">横轴为小说类型，纵轴分别为阅读量与鲜花数。</div>
+            </div>
+          </div>
+          <div id="chart-type-line" class="chart-large"></div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">各类型分享最多小说分析</div>
+              </div>
+            </div>
+            <div id="chart-type-bar" class="chart-large"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">各类型小说占比分析</div>
+              </div>
+            </div>
+            <div id="chart-type-pie" class="chart-large"></div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    let lineChart, barChart, pieChart;
+
+    // 加载类型分析数据
+    async function loadTypeAnalysis() {
+      try {
+        const container = document.getElementById("chart-type-line");
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>';
+        
+        const result = await getTypeAnalysis();
+        
+        if (result.code === 200 && result.data) {
+          const data = result.data;
+          
+          // 如果没有数据，显示提示
+          if (!data.categories || data.categories.length === 0) {
+            document.getElementById("chart-type-line").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+            document.getElementById("chart-type-bar").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+            document.getElementById("chart-type-pie").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无数据</div>';
+            return;
+          }
+          
+          // 渲染折线图：各类型阅读量/鲜花量
+          renderLineChart(data.categories, data.read_data, data.flower_data);
+          
+          // 渲染柱状图：各类型分享最多的小说
+          renderBarChart(data.top_shared_novels || []);
+          
+          // 渲染饼图：各类型占比
+          renderPieChart(data.percent || []);
+        } else {
+          console.error('加载类型分析数据失败:', result.message);
+          document.getElementById("chart-type-line").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+        }
+      } catch (error) {
+        console.error('加载类型分析数据失败:', error);
+        document.getElementById("chart-type-line").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+      }
+    }
+
+    // 渲染折线图
+    function renderLineChart(categories, readData, flowerData) {
+      lineChart = echarts.init(document.getElementById("chart-type-line"));
+      lineChart.setOption({
+        tooltip: { 
+          trigger: "axis",
+          formatter: function(params) {
+            let result = params[0].name + '<br/>';
+            params.forEach(function(item) {
+              result += item.marker + item.seriesName + ': ' + 
+                (item.value >= 10000 ? (item.value / 10000).toFixed(1) + '万' : item.value) + '<br/>';
+            });
+            return result;
+          }
+        },
+        legend: {
+          data: ["阅读量", "鲜花数"],
+          textStyle: { color: "#ffffff" },
+          top: 10
+        },
+        grid: { left: "3%", right: "4%", bottom: "6%", top: "15%", containLabel: true },
+        xAxis: {
+          type: "category",
+          data: categories,
+          axisLine: { lineStyle: { color: "#6c7bb4" } },
+          axisLabel: { 
+            color: "#b1b7e3",
+            rotate: categories.length > 6 ? 30 : 0,
+            formatter: function(val) {
+              return val.length > 8 ? val.slice(0, 8) + "…" : val;
+            }
+          }
+        },
+        yAxis: {
+          type: "value",
+          axisLine: { lineStyle: { color: "#6c7bb4" } },
+          splitLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } },
+          axisLabel: {
+            formatter: function(value) {
+              if (value >= 10000) {
+                return (value / 10000).toFixed(1) + '万';
+              }
+              return value;
+            }
+          }
+        },
+        series: [
+          {
+            name: "阅读量",
+            type: "line",
+            smooth: true,
+            data: readData,
+            itemStyle: { color: "#6e9bff" },
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: 'rgba(110, 155, 255, 0.3)' },
+                  { offset: 1, color: 'rgba(110, 155, 255, 0.05)' }
+                ]
+              }
+            }
+          },
+          {
+            name: "鲜花数",
+            type: "line",
+            smooth: true,
+            data: flowerData,
+            itemStyle: { color: "#ff7ddb" },
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: 'rgba(255, 125, 219, 0.3)' },
+                  { offset: 1, color: 'rgba(255, 125, 219, 0.05)' }
+                ]
+              }
+            }
+          }
+        ]
+      });
+    }
+
+    // 渲染柱状图
+    function renderBarChart(topNovels) {
+      barChart = echarts.init(document.getElementById("chart-type-bar"));
+      
+      if (!topNovels || topNovels.length === 0) {
+        document.getElementById("chart-type-bar").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无分享数据</div>';
+        return;
+      }
+      
+      const titles = topNovels.map(n => n.title);
+      const shareCounts = topNovels.map(n => n.share_count);
+      
+      barChart.setOption({
+        tooltip: { 
+          trigger: "axis",
+          formatter: function(params) {
+            return params[0].name + '<br/>分享数: ' + params[0].value;
+          }
+        },
+        grid: { left: "5%", right: "4%", bottom: "15%", top: "5%", containLabel: true },
+        xAxis: {
+          type: "category",
+          data: titles,
+          axisLabel: {
+            color: "#b1b7e3",
+            rotate: 30,
+            formatter: function (val) {
+              return val.length > 10 ? val.slice(0, 10) + "…" : val;
+            }
+          },
+          axisLine: { lineStyle: { color: "#6c7bb4" } }
+        },
+        yAxis: {
+          type: "value",
+          axisLine: { lineStyle: { color: "#6c7bb4" } },
+          splitLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } }
+        },
+        series: [
+          {
+            name: "分享数",
+            type: "bar",
+            data: shareCounts,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: "#ff7ddb" },
+                { offset: 1, color: "#ff4baf" }
+              ])
+            },
+            label: {
+              show: true,
+              position: 'top',
+              color: '#ffffff',
+              formatter: '{c}'
+            }
+          }
+        ]
+      });
+    }
+
+    // 渲染饼图
+    function renderPieChart(percentData) {
+      pieChart = echarts.init(document.getElementById("chart-type-pie"));
+      
+      if (!percentData || percentData.length === 0) {
+        document.getElementById("chart-type-pie").innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无占比数据</div>';
+        return;
+      }
+      
+      pieChart.setOption({
+        tooltip: { 
+          trigger: "item",
+          formatter: '{b}: {c} ({d}%)'
+        },
+        legend: {
+          orient: 'vertical',
+          right: 10,
+          top: 'center',
+          textStyle: { color: "#ffffff" },
+          formatter: function(name) {
+            const item = percentData.find(d => d.name === name);
+            return name + ' (' + (item ? item.value : 0) + ')';
+          }
+        },
+        series: [
+          {
+            type: "pie",
+            radius: ["40%", "65%"],
+            center: ["40%", "50%"],
+            avoidLabelOverlap: false,
+            itemStyle: {
+              borderRadius: 8,
+              borderColor: '#07071a',
+              borderWidth: 2
+            },
+            label: { 
+              show: true,
+              color: "#ffffff",
+              formatter: '{b}\n{d}%'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: 14,
+                fontWeight: 'bold'
+              }
+            },
+            data: percentData.map(function(item) {
+              return {
+                name: item.name,
+                value: item.value
+              };
+            })
+          }
+        ]
+      });
+    }
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      if (lineChart) lineChart.resize();
+      if (barChart) barChart.resize();
+      if (pieChart) pieChart.resize();
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadTypeAnalysis();
+    });
+  </script>
+{% endblock %}
+

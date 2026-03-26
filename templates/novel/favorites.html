@@ -1,0 +1,316 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 用户收藏{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* 自定义弹窗样式 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-overlay.show {
+    display: flex;
+  }
+
+  .modal-dialog {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 12px;
+    padding: 0;
+    min-width: 400px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 75, 175, 0.3);
+    animation: slideUp 0.3s ease;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .modal-icon {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #ff4baf, #b83bff);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  .modal-body {
+    padding: 24px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+
+  .modal-btn {
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    min-width: 80px;
+  }
+
+  .modal-btn-cancel {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .modal-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  .modal-btn-confirm {
+    background: linear-gradient(135deg, #ff4baf, #b83bff);
+    color: #fff;
+  }
+
+  .modal-btn-confirm:hover {
+    background: linear-gradient(135deg, #ff5bbf, #c84bff);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 75, 175, 0.3);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">我的收藏</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">我收藏的小说</div>
+              <div class="panel-subtitle">展示当前账号已收藏的小说列表。</div>
+            </div>
+          </div>
+
+          <div class="card-list" id="favorites-list">
+            <div class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载中...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 自定义确认弹窗 -->
+      <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <div class="modal-icon">⚠</div>
+            <h3 class="modal-title">确认操作</h3>
+          </div>
+          <div class="modal-body" id="confirm-message">
+            确定要取消收藏吗？
+          </div>
+          <div class="modal-footer">
+            <button class="modal-btn modal-btn-cancel" onclick="closeConfirmModal()">取消</button>
+            <button class="modal-btn modal-btn-confirm" id="confirm-btn">确定</button>
+          </div>
+        </div>
+      </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    // 加载收藏列表
+    (async function() {
+      try {
+        const result = await getFavorites();
+        const container = document.getElementById('favorites-list');
+        
+        if (result.code === 200 && result.data && result.data.favorites) {
+          const favorites = result.data.favorites;
+          
+          if (favorites.length === 0) {
+            container.innerHTML = '<div class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">暂无收藏</div>';
+            return;
+          }
+          
+          container.innerHTML = favorites.map(novel => `
+            <article class="book-card">
+              <a href="${novel.book_url || '#'}" title="${novel.title}" target="_blank">
+                <img class="book-cover" src="${novel.cover_url || ''}" alt="${novel.title}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'280\'%3E%3Crect fill=\'%23333\' width=\'200\' height=\'280\'/%3E%3Ctext fill=\'%23999\' font-family=\'Arial\' font-size=\'14\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E无封面%3C/text%3E%3C/svg%3E';" />
+              </a>
+              <div class="book-body">
+                <div class="book-title">${novel.title}</div>
+                <div class="book-meta">
+                  类型：${novel.category || '未知'}<br />
+                  评分：${novel.score || '0.0'}<br />
+                  阅读量：${(novel.total_read || 0).toLocaleString()}
+                </div>
+              </div>
+              <div class="book-footer">
+                <button class="btn-secondary" onclick="removeFavorite('${novel.book_id}')">取消收藏</button>
+              </div>
+            </article>
+          `).join('');
+        } else {
+          container.innerHTML = '<div class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载失败</div>';
+        }
+      } catch (error) {
+        console.error('加载收藏列表失败:', error);
+        document.getElementById('favorites-list').innerHTML = '<div class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载失败</div>';
+      }
+    })();
+    
+    // 当前待取消收藏的小说ID
+    let pendingBookId = null;
+
+    // 显示确认弹窗
+    function showConfirmModal(bookId, message = '确定要取消收藏吗？') {
+      pendingBookId = bookId;
+      document.getElementById('confirm-message').textContent = message;
+      document.getElementById('confirm-modal').classList.add('show');
+      
+      // 绑定确定按钮事件
+      const confirmBtn = document.getElementById('confirm-btn');
+      confirmBtn.onclick = function() {
+        confirmRemoveFavorite();
+      };
+    }
+
+    // 关闭确认弹窗
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').classList.remove('show');
+      pendingBookId = null;
+    }
+
+    // 确认取消收藏
+    async function confirmRemoveFavorite() {
+      if (!pendingBookId) {
+        console.error('confirmRemoveFavorite: pendingBookId 为空');
+        closeConfirmModal();
+        return;
+      }
+      
+      const bookId = String(pendingBookId); // 确保是字符串
+      console.log('确认取消收藏，bookId:', bookId);
+      
+      closeConfirmModal();
+      pendingBookId = null;
+
+      try {
+        const result = await setFavorite(bookId, false);
+        console.log('取消收藏结果:', result);
+        if (result.code === 200) {
+          // 显示成功提示（也可以用弹窗，这里先用简单的提示）
+          const container = document.getElementById('favorites-list');
+          const successMsg = document.createElement('div');
+          successMsg.className = 'text-center';
+          successMsg.style.cssText = 'padding: 20px; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-radius: 6px; margin-bottom: 20px;';
+          successMsg.textContent = '✓ 已取消收藏';
+          container.insertBefore(successMsg, container.firstChild);
+          
+          // 2秒后移除提示并重新加载列表
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else if (result.code === 401) {
+          showConfirmModal(null, '请先登录后再操作');
+          // 将确定按钮改为关闭弹窗
+          document.getElementById('confirm-btn').onclick = function() {
+            closeConfirmModal();
+          };
+        } else {
+          showConfirmModal(null, '取消收藏失败：' + (result.message || '未知错误'));
+          // 将确定按钮改为关闭弹窗
+          document.getElementById('confirm-btn').onclick = function() {
+            closeConfirmModal();
+          };
+        }
+      } catch (error) {
+        console.error('取消收藏失败:', error);
+        showConfirmModal(null, '取消收藏失败，请稍后重试');
+        // 将确定按钮改为关闭弹窗
+        document.getElementById('confirm-btn').onclick = function() {
+          closeConfirmModal();
+        };
+      }
+    }
+
+    // 点击遮罩层关闭弹窗
+    document.getElementById('confirm-modal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeConfirmModal();
+      }
+    });
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeConfirmModal();
+      }
+    });
+
+    async function removeFavorite(bookId) {
+      if (!bookId) return;
+      showConfirmModal(bookId);
+    }
+  </script>
+{% endblock %}
+

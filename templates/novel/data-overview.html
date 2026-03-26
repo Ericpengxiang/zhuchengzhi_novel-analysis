@@ -1,0 +1,429 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 数据浏览{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">小说数据浏览</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">小说数据总览</div>
+              <div class="panel-subtitle">展示部分小说的核心数据字段，可在实际项目中接入后端分页查询。</div>
+            </div>
+          </div>
+
+          <div class="panel-header" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+            <div style="display: flex; gap: 10px; align-items: center; flex: 1;">
+              <input type="text" id="search-input" placeholder="搜索小说名称、作者..." class="input" style="width: 300px;" />
+              <button class="btn-primary" onclick="searchNovels()">搜索</button>
+              <button class="btn-secondary" onclick="resetSearch()">重置</button>
+            </div>
+          </div>
+
+          <div class="table-container" style="overflow-x: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>类型</th>
+                  <th>名称</th>
+                  <th>封面</th>
+                  <th>作者</th>
+                  <th>作者头像</th>
+                  <th>作品数</th>
+                  <th>创作字数</th>
+                  <th>连更天数</th>
+                  <th>月阅读</th>
+                  <th>月鲜花</th>
+                  <th>总阅读</th>
+                  <th>总鲜花</th>
+                  <th>作品字数</th>
+                  <th>催更票</th>
+                  <th>打赏</th>
+                  <th>月票</th>
+                  <th>分享人数</th>
+                  <th>评分</th>
+                  <th>发行时间</th>
+                  <th>更新时间</th>
+                  <th class="text-center">收藏</th>
+                </tr>
+              </thead>
+              <tbody id="novel-data-body">
+                <tr>
+                  <td colspan="21" class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载中...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 12px; padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
+            <div style="color: rgba(255,255,255,0.6); font-size: 14px;">
+              共 <span id="total-count">0</span> 条
+            </div>
+            
+            <div style="position: relative;">
+              <select id="page-size-select" style="padding: 6px 30px 6px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); font-size: 14px; cursor: pointer; appearance: none; outline: none; transition: all 0.2s;" onmouseenter="this.style.borderColor='rgba(255,255,255,0.3)'; this.style.background='rgba(255,255,255,0.08)';" onmouseleave="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.background='rgba(255,255,255,0.05)';">
+                <option value="10">10 条/页</option>
+                <option value="20" selected>20 条/页</option>
+                <option value="50">50 条/页</option>
+                <option value="100">100 条/页</option>
+              </select>
+              <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: rgba(255,255,255,0.6);">▼</span>
+            </div>
+            
+            <button id="prev-page" onclick="changePage(-1)" style="width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" onmouseenter="if(!this.disabled) { this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'; }" onmouseleave="if(!this.disabled) { this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)'; }" disabled>‹</button>
+            
+            <div id="page-numbers" style="display: flex; gap: 4px; align-items: center;">
+              <!-- 页码按钮将通过JavaScript动态生成 -->
+            </div>
+            
+            <button id="next-page" onclick="changePage(1)" style="width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;" onmouseenter="if(!this.disabled) { this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'; }" onmouseleave="if(!this.disabled) { this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.2)'; }" disabled>›</button>
+            
+            <div style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.6); font-size: 14px;">
+              <span>前往</span>
+              <input type="number" id="goto-page-input" min="1" value="1" style="width: 50px; padding: 6px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); font-size: 14px; text-align: center; outline: none; transition: all 0.2s;" onmouseenter="this.style.borderColor='rgba(255,255,255,0.3)'; this.style.background='rgba(255,255,255,0.08)';" onmouseleave="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.background='rgba(255,255,255,0.05)';" onfocus="this.style.borderColor='rgba(255,255,255,0.4)'; this.style.background='rgba(255,255,255,0.1)';" onblur="this.style.borderColor='rgba(255,255,255,0.2)'; this.style.background='rgba(255,255,255,0.05)';">
+              <span>页</span>
+            </div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    let currentPage = 1;
+    let pageSize = 20;
+    let totalPages = 1;
+    let totalCount = 0;
+    let searchKeyword = '';
+
+    // 格式化数字，添加千位分隔符
+    function formatNumber(num) {
+      if (num === null || num === undefined || num === '') return '0';
+      return parseInt(num).toLocaleString('zh-CN');
+    }
+
+    // 加载小说数据
+    async function loadNovels(page = 1, keyword = '') {
+      try {
+        const container = document.getElementById('novel-data-body');
+        container.innerHTML = '<tr><td colspan="21" class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载中...</td></tr>';
+        
+        const params = {
+          page: page,
+          page_size: pageSize
+        };
+        if (keyword) {
+          params.keyword = keyword;
+        }
+
+        const result = await getDataOverview(params);
+        
+        if (result.code === 200 && result.data && result.data.list) {
+          const novels = result.data.list;
+          totalCount = result.data.total;
+          totalPages = result.data.total_pages || Math.ceil(totalCount / pageSize);
+          currentPage = result.data.page;
+
+          if (novels.length === 0) {
+            container.innerHTML = '<tr><td colspan="21" class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">暂无数据</td></tr>';
+            updatePagination();
+            return;
+          }
+
+          container.innerHTML = novels.map(novel => `
+            <tr>
+              <td>${novel.category || '-'}</td>
+              <td>${novel.title || '-'}</td>
+              <td>
+                ${novel.cover_url ? `<img class="table-cover" src="${novel.cover_url}" alt="${novel.title || ''}" />` : '<span class="badge">无封面</span>'}
+              </td>
+              <td>${novel.author || '-'}</td>
+              <td><span class="badge">头像</span></td>
+              <td>${novel.author_works_count || 0}</td>
+              <td class="number-cell">${novel.author_total_words || 0}</td>
+              <td>${novel.continuous_days || 0}</td>
+              <td class="number-cell">${novel.month_read || 0}</td>
+              <td class="number-cell">${novel.month_flower || 0}</td>
+              <td class="number-cell">${novel.total_read || 0}</td>
+              <td class="number-cell">${novel.total_flower || 0}</td>
+              <td class="number-cell">${novel.total_words || 0}</td>
+              <td>${novel.urge_tickets || 0}</td>
+              <td>${(novel.reward || 0).toFixed(1)}</td>
+              <td>${novel.monthly_tickets || 0}</td>
+              <td>${novel.share_count || 0}</td>
+              <td>${(novel.score || 0).toFixed(1)}</td>
+              <td>${novel.in_time || '-'}</td>
+              <td>${novel.update_time || '-'}</td>
+              <td class="text-center">
+                <span
+                  class="link favorite-link"
+                  data-favorite="${novel.is_favorite ? '1' : '0'}"
+                  data-book-id="${novel.book_id}"
+                  style="color:${novel.is_favorite ? '#4ade80' : '#ff4baf'};cursor:pointer;font-weight:${novel.is_favorite ? '500' : '400'};transition:all 0.2s ease;"
+                  onclick="toggleFavorite('${novel.book_id}', this)"
+                  title="${novel.is_favorite ? '点击取消收藏' : '点击收藏'}"
+                >
+                  ${novel.is_favorite ? '已收藏' : '收藏'}
+                </span>
+              </td>
+            </tr>
+          `).join('');
+
+          // 格式化数字
+          setTimeout(() => {
+            const numberCells = document.querySelectorAll('.number-cell');
+            numberCells.forEach(function(cell) {
+              const num = cell.textContent.trim();
+              if (num && !isNaN(num)) {
+                cell.textContent = formatNumber(num);
+              }
+            });
+          }, 100);
+
+          updatePagination();
+        } else {
+          container.innerHTML = '<tr><td colspan="21" class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</td></tr>';
+        }
+      } catch (error) {
+        console.error('加载小说列表失败:', error);
+        document.getElementById('novel-data-body').innerHTML = '<tr><td colspan="21" class="text-center" style="padding: 40px; color: rgba(255,255,255,0.6);">加载失败，请刷新重试</td></tr>';
+      }
+    }
+
+    // 更新分页控件
+    function updatePagination() {
+      document.getElementById('total-count').textContent = totalCount;
+      document.getElementById('goto-page-input').value = currentPage;
+      
+      // 更新上一页/下一页按钮状态
+      const prevBtn = document.getElementById('prev-page');
+      const nextBtn = document.getElementById('next-page');
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+      
+      // 更新按钮样式
+      if (prevBtn.disabled) {
+        prevBtn.style.opacity = '0.4';
+        prevBtn.style.cursor = 'not-allowed';
+      } else {
+        prevBtn.style.opacity = '1';
+        prevBtn.style.cursor = 'pointer';
+      }
+      
+      if (nextBtn.disabled) {
+        nextBtn.style.opacity = '0.4';
+        nextBtn.style.cursor = 'not-allowed';
+      } else {
+        nextBtn.style.opacity = '1';
+        nextBtn.style.cursor = 'pointer';
+      }
+      
+      // 生成页码按钮
+      renderPageNumbers();
+    }
+
+    // 渲染页码按钮
+    function renderPageNumbers() {
+      const container = document.getElementById('page-numbers');
+      container.innerHTML = '';
+      
+      if (totalPages === 0) {
+        return;
+      }
+      
+      // 计算显示的页码范围
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, currentPage + 2);
+      
+      // 如果当前页靠近开始，确保显示5个页码
+      if (endPage - startPage < 4) {
+        if (startPage === 1) {
+          endPage = Math.min(totalPages, startPage + 4);
+        } else if (endPage === totalPages) {
+          startPage = Math.max(1, endPage - 4);
+        }
+      }
+      
+      // 生成页码按钮
+      for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.textContent = i;
+        pageBtn.style.width = '32px';
+        pageBtn.style.height = '32px';
+        pageBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+        pageBtn.style.borderRadius = '6px';
+        pageBtn.style.fontSize = '14px';
+        pageBtn.style.cursor = 'pointer';
+        pageBtn.style.transition = 'all 0.2s';
+        
+        if (i === currentPage) {
+          // 当前页高亮
+          pageBtn.style.background = '#9333ea';
+          pageBtn.style.color = '#ffffff';
+          pageBtn.style.borderColor = '#9333ea';
+        } else {
+          pageBtn.style.background = 'rgba(255,255,255,0.05)';
+          pageBtn.style.color = 'rgba(255,255,255,0.8)';
+        }
+        
+        // 添加hover效果
+        pageBtn.addEventListener('mouseenter', function() {
+          if (i !== currentPage) {
+            this.style.background = 'rgba(255,255,255,0.1)';
+            this.style.borderColor = 'rgba(255,255,255,0.3)';
+          }
+        });
+        
+        pageBtn.addEventListener('mouseleave', function() {
+          if (i !== currentPage) {
+            this.style.background = 'rgba(255,255,255,0.05)';
+            this.style.borderColor = 'rgba(255,255,255,0.2)';
+          }
+        });
+        
+        pageBtn.onclick = () => goToPage(i);
+        container.appendChild(pageBtn);
+      }
+    }
+
+    // 切换页码
+    function changePage(delta) {
+      const newPage = currentPage + delta;
+      if (newPage >= 1 && newPage <= totalPages) {
+        goToPage(newPage);
+      }
+    }
+
+    // 跳转到指定页
+    function goToPage(page) {
+      if (page >= 1 && page <= totalPages && page !== currentPage) {
+        currentPage = page;
+        loadNovels(currentPage, searchKeyword);
+      }
+    }
+
+    // 搜索小说
+    function searchNovels() {
+      searchKeyword = document.getElementById('search-input').value.trim();
+      currentPage = 1;
+      loadNovels(currentPage, searchKeyword);
+    }
+
+    // 重置搜索
+    function resetSearch() {
+      document.getElementById('search-input').value = '';
+      searchKeyword = '';
+      currentPage = 1;
+      loadNovels(currentPage, searchKeyword);
+    }
+
+    // 回车搜索
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchNovels();
+      }
+    });
+
+
+    async function toggleFavorite(bookId, el) {
+      if (!bookId || !el) {
+        console.error('toggleFavorite: 参数无效', { bookId, el });
+        return;
+      }
+      
+      const bookIdStr = String(bookId); // 确保是字符串
+      const current = el.getAttribute('data-favorite') === '1';
+      const target = !current;
+      
+      console.log('切换收藏状态:', { bookId: bookIdStr, current, target });
+
+      // 禁用按钮，防止重复点击
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.6';
+      const originalText = el.textContent;
+
+      try {
+        const result = await setFavorite(bookIdStr, target);
+        console.log('收藏操作结果:', result);
+        
+        if (result.code === 200) {
+          // 更新UI状态
+          el.setAttribute('data-favorite', target ? '1' : '0');
+          el.textContent = target ? '已收藏' : '收藏';
+          
+          // 更新样式
+          if (target) {
+            el.style.color = '#4ade80';
+            el.style.fontWeight = '500';
+          } else {
+            el.style.color = '#ff4baf';
+            el.style.fontWeight = '400';
+          }
+        } else if (result.code === 401) {
+          alert('请先登录后再使用收藏功能');
+          // 恢复原状态
+          el.setAttribute('data-favorite', current ? '1' : '0');
+          el.textContent = originalText;
+        } else {
+          alert('收藏操作失败：' + (result.message || '未知错误'));
+          // 恢复原状态
+          el.setAttribute('data-favorite', current ? '1' : '0');
+          el.textContent = originalText;
+        }
+      } catch (error) {
+        console.error('收藏操作失败:', error);
+        alert('收藏操作失败，请稍后重试');
+        // 恢复原状态
+        el.setAttribute('data-favorite', current ? '1' : '0');
+        el.textContent = originalText;
+      } finally {
+        // 恢复按钮状态
+        el.style.pointerEvents = 'auto';
+        el.style.opacity = '1';
+      }
+    }
+
+    // 每页数量改变
+    document.getElementById('page-size-select').addEventListener('change', function(e) {
+      pageSize = parseInt(e.target.value);
+      currentPage = 1;
+      loadNovels(currentPage, searchKeyword);
+    });
+
+    // 跳转输入框事件
+    const gotoInput = document.getElementById('goto-page-input');
+    gotoInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        const targetPage = parseInt(e.target.value);
+        if (targetPage >= 1 && targetPage <= totalPages) {
+          goToPage(targetPage);
+        } else {
+          alert('请输入有效的页码（1-' + totalPages + '）');
+          e.target.value = currentPage;
+        }
+      }
+    });
+
+    gotoInput.addEventListener('blur', function(e) {
+      const targetPage = parseInt(e.target.value);
+      if (targetPage < 1 || targetPage > totalPages || isNaN(targetPage)) {
+        e.target.value = currentPage;
+      }
+    });
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadNovels(currentPage, searchKeyword);
+    });
+  </script>
+{% endblock %}
+

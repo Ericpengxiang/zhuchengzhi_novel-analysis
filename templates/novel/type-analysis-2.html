@@ -1,0 +1,154 @@
+{% extends 'novel/base.html' %}
+{% load static %}
+
+{% block title %} - 类型分析（详情）{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+      <header class="main-header">
+        <div class="main-title">类型分析 · 详细对比</div>
+        <div class="main-header-right">
+          <span>当前账号：<span data-fake-user></span></span>
+          <div class="avatar"></div>
+        </div>
+      </header>
+
+      <section class="main-body">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">各类型小说评分 / 阅读量对比</div>
+            </div>
+          </div>
+          <div id="chart-type-mix" class="chart-large"></div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">各类型高分作品数量</div>
+              </div>
+            </div>
+            <div id="chart-type-bar2" class="chart-large"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">各类型月票占比</div>
+              </div>
+            </div>
+            <div id="chart-type-pie2" class="chart-large"></div>
+          </div>
+        </div>
+      </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script>
+    const types = ["都市言情", "军事历史", "青春校园", "玄幻奇幻", "同人小说", "科幻网游"];
+    const scores = [8.9, 9.1, 8.7, 9.5, 8.8, 9.0];
+    const reads = [3200, 2600, 1800, 5200, 2100, 3000];
+
+    const mixChart = echarts.init(document.getElementById("chart-type-mix"));
+    mixChart.setOption({
+      tooltip: { trigger: "axis" },
+      legend: {
+        data: ["平均评分", "阅读量"],
+        textStyle: { color: "#ffffff" }
+      },
+      grid: { left: "4%", right: "4%", bottom: "6%", containLabel: true },
+      xAxis: { type: "category", data: types, axisLabel: { color: "#b1b7e3" }, axisLine: { lineStyle: { color: "#6c7bb4" } } },
+      yAxis: [
+        {
+          type: "value",
+          name: "评分",
+          min: 8,
+          max: 10,
+          axisLine: { lineStyle: { color: "#6c7bb4" } },
+          splitLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } }
+        },
+        {
+          type: "value",
+          name: "阅读量",
+          axisLine: { lineStyle: { color: "#6c7bb4" } },
+          splitLine: { show: false }
+        }
+      ],
+      series: [
+        {
+          name: "平均评分",
+          type: "line",
+          smooth: true,
+          data: scores,
+          itemStyle: { color: "#ff7ddb" }
+        },
+        {
+          name: "阅读量",
+          type: "bar",
+          yAxisIndex: 1,
+          data: reads,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "#6f9dff" },
+              { offset: 1, color: "#3a55ff" }
+            ])
+          }
+        }
+      ]
+    });
+
+    const bar2 = echarts.init(document.getElementById("chart-type-bar2"));
+    bar2.setOption({
+      tooltip: { trigger: "axis" },
+      grid: { left: "6%", right: "4%", bottom: "8%", containLabel: true },
+      xAxis: { type: "category", data: types, axisLabel: { color: "#b1b7e3" }, axisLine: { lineStyle: { color: "#6c7bb4" } } },
+      yAxis: { type: "value", axisLine: { lineStyle: { color: "#6c7bb4" } }, splitLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } } },
+      series: [
+        {
+          type: "bar",
+          data: [120, 80, 60, 180, 90, 110],
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "#ffcf71" },
+              { offset: 1, color: "#ff7d5c" }
+            ])
+          }
+        }
+      ]
+    });
+
+    const pie2 = echarts.init(document.getElementById("chart-type-pie2"));
+    pie2.setOption({
+      tooltip: { trigger: "item" },
+      series: [
+        {
+          type: "pie",
+          radius: ["40%", "65%"],
+          center: ["50%", "50%"],
+          label: { color: "#ffffff" },
+          data: [
+            { value: 1643, name: "都市言情" },
+            { value: 1643, name: "军事历史" },
+            { value: 1543, name: "青春校园" },
+            { value: 1684, name: "玄幻奇幻" },
+            { value: 1443, name: "同人小说" },
+            { value: 1635, name: "科幻网游" }
+          ]
+        }
+      ]
+    });
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+      mixChart.resize();
+      bar2.resize();
+      pie2.resize();
+    });
+  </script>
+{% endblock %}
+
+
