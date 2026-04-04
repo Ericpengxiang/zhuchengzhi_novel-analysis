@@ -139,6 +139,23 @@ async function getRecommendNovels() {
 }
 
 /**
+ * 获取优化协同过滤推荐
+ */
+async function getOptimizedRecommendNovels(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return await apiRequest(`${API_BASE_URL}/recommend/optimized/${queryString ? `?${queryString}` : ''}`);
+}
+
+/**
+ * 获取推荐对比结果（原推荐 vs 优化推荐）
+ */
+async function getRecommendCompare(params = {}) {
+    const merged = { mode: 'compare', ...params };
+    const queryString = new URLSearchParams(merged).toString();
+    return await apiRequest(`${API_BASE_URL}/recommend/?${queryString}`);
+}
+
+/**
  * 获取收藏列表
  */
 async function getFavorites() {
@@ -174,6 +191,5 @@ async function setFavorite(bookId, favorite) {
         body: JSON.stringify(requestData),
     });
 }
-
 
 

@@ -31,6 +31,6 @@ urlpatterns = [
     path('time-analysis/', views.time_analysis, name='time_analysis'),
     path('wordcloud/', views.wordcloud_data, name='wordcloud'),
     path('recommend/', views.recommend_novels, name='recommend'),
+    path('recommend/optimized/', views.recommend_novels_optimized, name='recommend_optimized'),
     path('favorites/', views.favorites_list, name='favorites'),
 ]
-

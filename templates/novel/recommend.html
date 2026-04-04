@@ -18,13 +18,28 @@
         <div class="panel">
           <div class="panel-header">
             <div>
-              <div class="panel-title">为你推荐</div>
-              <div class="panel-subtitle">根据评分和阅读量综合推荐的高质量小说。</div>
+              <div class="panel-title">推荐算法对比（论文实验页）</div>
+              <div class="panel-subtitle">保留原推荐 + 新增优化协同过滤推荐，可用于论文截图演示。</div>
             </div>
           </div>
-
-          <div class="recommend-row" id="recommend-list">
-            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载中...</div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;margin-bottom:16px;color:#334155;">
+            <strong>参数说明：</strong>
+            alpha(融合权重) / top_n(邻居数) / threshold(相似度阈值) / top_k(推荐条数)
+            <div id="recommend-param" style="font-size:13px;color:#64748b;margin-top:8px;">加载中...</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <h3 style="color:#0f172a;">原推荐结果</h3>
+              <div class="recommend-row" id="recommend-standard">
+                <div style="text-align:center;padding:40px;color:#64748b;">加载中...</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="color:#0f172a;">优化推荐结果</h3>
+              <div class="recommend-row" id="recommend-optimized">
+                <div style="text-align:center;padding:40px;color:#64748b;">加载中...</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -32,60 +47,66 @@
 
 {% block extra_js %}
   <script>
-    // 加载推荐小说
+    function renderRecommendList(containerId, novels) {
+      const container = document.getElementById(containerId);
+      if (!novels || novels.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:32px;color:#64748b;">暂无推荐</div>';
+        return;
+      }
+      container.innerHTML = novels.map(novel => {
+        const isFavorite = novel.is_favorite || false;
+        return `
+        <article class="recommend-card" style="background:#ffffff;border:1px solid #e2e8f0;">
+          <div class="recommend-main">
+            <img
+              class="recommend-cover"
+              src="${novel.cover_url || ''}"
+              alt="${novel.title}"
+              onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'280\\'%3E%3Crect fill=\\'%23e2e8f0\\' width=\\'200\\' height=\\'280\\'/%3E%3Ctext fill=\\'%2364748b\\' font-family=\\'Arial\\' font-size=\\'14\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dominant-baseline=\\'middle\\'%3E无封面%3C/text%3E%3C/svg%3E';"
+            />
+            <div>
+              <div class="recommend-title" style="color:#0f172a;">${novel.title}</div>
+              <div class="recommend-meta" style="color:#334155;">
+                类型：${novel.category || '未知'}<br />
+                评分：${(novel.score || 0).toFixed(1)}<br />
+                阅读量：${(novel.total_read || 0).toLocaleString()}
+              </div>
+            </div>
+          </div>
+          <div class="recommend-btn">
+            <button
+              class="btn-secondary"
+              data-book-id="${novel.book_id}"
+              data-active="${isFavorite ? '1' : '0'}"
+              onclick="toggleFavorite('${novel.book_id}', this)"
+              style="background: ${isFavorite ? '#4ade80' : '#ff4baf'};"
+            >
+              ${isFavorite ? '已收藏' : '收藏'}
+            </button>
+          </div>
+        </article>
+      `;
+      }).join('');
+    }
+
     async function loadRecommendNovels() {
       try {
-        const result = await getRecommendNovels();
-        const container = document.getElementById('recommend-list');
-        
-        if (result.code === 200 && result.data && result.data.novels) {
-          const novels = result.data.novels;
-          
-          if (novels.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">暂无推荐</div>';
-            return;
-          }
-          
-          container.innerHTML = novels.map(novel => {
-            const isFavorite = novel.is_favorite || false;
-            return `
-            <article class="recommend-card">
-              <div class="recommend-main">
-                <img
-                  class="recommend-cover"
-                  src="${novel.cover_url || ''}"
-                  alt="${novel.title}"
-                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'280\'%3E%3Crect fill=\'%23333\' width=\'200\' height=\'280\'/%3E%3Ctext fill=\'%23999\' font-family=\'Arial\' font-size=\'14\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E无封面%3C/text%3E%3C/svg%3E';"
-                />
-                <div>
-                  <div class="recommend-title">${novel.title}</div>
-                  <div class="recommend-meta">
-                    类型：${novel.category || '未知'}<br />
-                    评分：${(novel.score || 0).toFixed(1)}<br />
-                    阅读量：${(novel.total_read || 0).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-              <div class="recommend-btn">
-                <button 
-                  class="btn-secondary" 
-                  data-book-id="${novel.book_id}" 
-                  data-active="${isFavorite ? '1' : '0'}" 
-                  onclick="toggleFavorite('${novel.book_id}', this)"
-                  style="background: ${isFavorite ? '#4ade80' : '#ff4baf'};"
-                >
-                  ${isFavorite ? '已收藏' : '收藏'}
-                </button>
-              </div>
-            </article>
-          `;
-          }).join('');
+        const result = await getRecommendCompare();
+        if (result.code === 200 && result.data) {
+          renderRecommendList('recommend-standard', result.data.standard_novels || []);
+          renderRecommendList('recommend-optimized', result.data.optimized_novels || []);
+          const source = result.data.source || 'hot_fallback';
+          const params = result.data.params || {};
+          document.getElementById('recommend-param').textContent =
+            `来源：${source} ｜ alpha=${params.alpha ?? '-'} ｜ top_n=${params.top_n_neighbors ?? '-'} ｜ threshold=${params.score_threshold ?? '-'} ｜ top_k=${params.top_k_results ?? '-'}`;
         } else {
-          container.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败：' + (result.message || '未知错误') + '</div>';
+          document.getElementById('recommend-standard').innerHTML = '<div style="text-align:center;padding:32px;color:#64748b;">加载失败</div>';
+          document.getElementById('recommend-optimized').innerHTML = '<div style="text-align:center;padding:32px;color:#64748b;">加载失败</div>';
         }
       } catch (error) {
         console.error('加载推荐小说失败:', error);
-        document.getElementById('recommend-list').innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.6);">加载失败，请刷新重试</div>';
+        document.getElementById('recommend-standard').innerHTML = '<div style="text-align:center;padding:32px;color:#64748b;">加载失败，请刷新重试</div>';
+        document.getElementById('recommend-optimized').innerHTML = '<div style="text-align:center;padding:32px;color:#64748b;">加载失败，请刷新重试</div>';
       }
     }
 

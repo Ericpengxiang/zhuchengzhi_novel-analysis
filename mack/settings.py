@@ -140,3 +140,11 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# 推荐算法配置（协同过滤优化尝试版）
+RECOMMEND_OPT_ALPHA = 0.6
+RECOMMEND_OPT_TOP_N_NEIGHBORS = 5
+RECOMMEND_OPT_TOP_K_RESULTS = 6
+RECOMMEND_OPT_SCORE_THRESHOLD = 0.2
+RECOMMEND_OPT_CLUSTER_COUNT = 3

@@ -301,6 +301,8 @@ class Command(BaseCommand):
         {'username': 'admin',    'password': 'admin123',  'nickname': '管理员',    'is_staff': True,  'is_superuser': True},
         {'username': 'test',     'password': 'test123',   'nickname': '测试用户',  'is_staff': False, 'is_superuser': False},
         {'username': 'demo',     'password': 'demo123',   'nickname': '演示账号',  'is_staff': False, 'is_superuser': False},
+        {'username': 'reader_a', 'password': 'reader123', 'nickname': '阅读者A',   'is_staff': False, 'is_superuser': False},
+        {'username': 'reader_b', 'password': 'reader123', 'nickname': '阅读者B',   'is_staff': False, 'is_superuser': False},
     ]
 
     def handle(self, *args, **options):
@@ -378,19 +380,18 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS(f'  ✔ {n["title"]} ({n["author"]})'))
 
-        # 3. 为 test / demo 用户添加收藏
+        # 3. 为用户添加收藏（用于协同过滤最小可运行实验数据）
         self.stdout.write('▶ 添加用户收藏...')
-        fav_user = created_users[1]  # test 用户
-        fav_books = [n['book_id'] for n in self.NOVELS[:8]]
-        for bid in fav_books:
-            UserFavorite.objects.get_or_create(user=fav_user, book_id=bid)
-        self.stdout.write(self.style.SUCCESS(f'  ✔ 为 {fav_user.username} 添加了 {len(fav_books)} 条收藏'))
-
-        demo_user = created_users[2]  # demo 用户
-        demo_books = [n['book_id'] for n in self.NOVELS[5:12]]
-        for bid in demo_books:
-            UserFavorite.objects.get_or_create(user=demo_user, book_id=bid)
-        self.stdout.write(self.style.SUCCESS(f'  ✔ 为 {demo_user.username} 添加了 {len(demo_books)} 条收藏'))
+        user_book_map = {
+            created_users[1]: [n['book_id'] for n in self.NOVELS[:8]],      # test
+            created_users[2]: [n['book_id'] for n in self.NOVELS[5:12]],    # demo
+            created_users[3]: [n['book_id'] for n in self.NOVELS[2:10]],    # reader_a
+            created_users[4]: [n['book_id'] for n in self.NOVELS[9:17]],    # reader_b
+        }
+        for user_obj, book_ids in user_book_map.items():
+            for bid in book_ids:
+                UserFavorite.objects.get_or_create(user=user_obj, book_id=bid)
+            self.stdout.write(self.style.SUCCESS(f'  ✔ 为 {user_obj.username} 添加了 {len(book_ids)} 条收藏'))
 
         self.stdout.write(self.style.SUCCESS('\n=== 测试数据初始化完成 ==='))
         self.stdout.write(self.style.WARNING('\n测试账号：'))

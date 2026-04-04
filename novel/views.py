@@ -6,11 +6,27 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Count, Sum, Avg, Max, Q
 from django.db.models.functions import TruncMonth, TruncYear
 from .models import NovelList, NovelDetail, NovelChapter, UserFavorite
+from .services.recommend_cf_opt import OptimizedCFRecommender, baseline_hot_recommend
 import json
+
+
+def _safe_int(raw, default):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(raw, default):
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
 
 
 def cors_response(func):
@@ -915,59 +931,72 @@ def wordcloud_data(request):
 @cors_response
 @require_http_methods(["GET"])
 def recommend_novels(request):
-    """推荐小说（基于评分和阅读量）"""
+    """推荐小说（支持 standard / optimized / compare 三种模式）。"""
     try:
-        print(f"\n{'='*60}")
-        print(f"📊 推荐小说API请求")
-        print(f"{'='*60}")
-        
-        # 获取当前用户收藏的小说ID列表（如果已登录）
+        mode = request.GET.get('mode', 'compare').strip().lower()
+        top_k = _safe_int(request.GET.get('top_k'), getattr(settings, 'RECOMMEND_OPT_TOP_K_RESULTS', 6))
+
         favorite_book_ids = set()
         if request.user.is_authenticated:
-            favorite_book_ids = set(
-                UserFavorite.objects.filter(user=request.user)
-                .values_list('book_id', flat=True)
-            )
-            print(f"当前用户已收藏的小说数量: {len(favorite_book_ids)}")
-        
-        # 取评分高且阅读量大的小说（综合排序）
-        novels = NovelDetail.objects.filter(
-            score__gte=7.0  # 评分7.0以上
-        ).order_by('-score', '-total_read')[:3]
-        
-        recommend_list = []
-        for novel in novels:
-            try:
-                list_data = NovelList.objects.get(book_id=novel.book_id)
-                cover_url = list_data.cover_url
-                book_url = list_data.book_url
-            except:
-                cover_url = novel.cover_url if hasattr(novel, 'cover_url') else ''
-                book_url = ''
-            
-            # 检查当前用户是否收藏了这本小说
-            is_favorite = novel.book_id in favorite_book_ids
-            
-            recommend_list.append({
-                'book_id': novel.book_id,
-                'title': novel.title,
-                'category': novel.category or '未知',
-                'score': float(novel.score) if novel.score else 0.0,
-                'total_read': novel.total_read or 0,
-                'cover_url': cover_url,
-                'book_url': book_url,
-                'is_favorite': is_favorite,  # 添加收藏状态
+            favorite_book_ids = set(UserFavorite.objects.filter(user=request.user).values_list('book_id', flat=True))
+
+        def enrich(items):
+            rows = []
+            for item in items:
+                bid = item.get('book_id')
+                list_data = NovelList.objects.filter(book_id=bid).first()
+                row = dict(item)
+                row['book_url'] = list_data.book_url if list_data else ''
+                row['cover_url'] = row.get('cover_url') or (list_data.cover_url if list_data else '')
+                row['is_favorite'] = bid in favorite_book_ids
+                rows.append(row)
+            return rows
+
+        standard_rows = enrich(baseline_hot_recommend(top_k=top_k))
+
+        if mode == 'standard':
+            return JsonResponse({
+                'code': 200,
+                'message': 'success',
+                'data': {'mode': 'standard', 'novels': standard_rows}
             })
-            
-            print(f"推荐: {novel.title} (评分: {novel.score}, 阅读量: {novel.total_read:,}, 已收藏: {is_favorite})")
-        
-        print(f"{'='*60}\n")
-        
+
+        recommender = OptimizedCFRecommender(
+            alpha=_safe_float(request.GET.get('alpha'), getattr(settings, 'RECOMMEND_OPT_ALPHA', 0.6)),
+            top_n_neighbors=_safe_int(request.GET.get('top_n'), getattr(settings, 'RECOMMEND_OPT_TOP_N_NEIGHBORS', 5)),
+            top_k_results=top_k,
+            score_threshold=_safe_float(request.GET.get('threshold'), getattr(settings, 'RECOMMEND_OPT_SCORE_THRESHOLD', 0.2)),
+            cluster_count=_safe_int(request.GET.get('cluster_count'), getattr(settings, 'RECOMMEND_OPT_CLUSTER_COUNT', 3)),
+        )
+        optimized_source = 'hot_fallback'
+        optimized_rows = []
+        if request.user.is_authenticated:
+            optimized_rows, optimized_source, params = recommender.recommend(request.user.id)
+        else:
+            params = recommender.params
+        optimized_rows = enrich(optimized_rows if optimized_rows else baseline_hot_recommend(top_k=top_k))
+
+        if mode == 'optimized':
+            return JsonResponse({
+                'code': 200,
+                'message': 'success',
+                'data': {
+                    'mode': 'optimized',
+                    'novels': optimized_rows,
+                    'source': optimized_source,
+                    'params': params,
+                }
+            })
+
         return JsonResponse({
             'code': 200,
             'message': 'success',
             'data': {
-                'novels': recommend_list,
+                'mode': 'compare',
+                'standard_novels': standard_rows,
+                'optimized_novels': optimized_rows,
+                'source': optimized_source,
+                'params': params,
             }
         })
     except Exception as e:
@@ -981,6 +1010,57 @@ def recommend_novels(request):
             'message': str(e),
             'data': None
         })
+
+
+@csrf_exempt
+@cors_response
+@require_http_methods(["GET"])
+def recommend_novels_optimized(request):
+    """优化协同过滤推荐接口。"""
+    try:
+        top_k = _safe_int(request.GET.get('top_k'), getattr(settings, 'RECOMMEND_OPT_TOP_K_RESULTS', 6))
+        favorite_book_ids = set()
+        if request.user.is_authenticated:
+            favorite_book_ids = set(UserFavorite.objects.filter(user=request.user).values_list('book_id', flat=True))
+
+        def enrich(items):
+            rows = []
+            for item in items:
+                bid = item.get('book_id')
+                list_data = NovelList.objects.filter(book_id=bid).first()
+                row = dict(item)
+                row['book_url'] = list_data.book_url if list_data else ''
+                row['cover_url'] = row.get('cover_url') or (list_data.cover_url if list_data else '')
+                row['is_favorite'] = bid in favorite_book_ids
+                rows.append(row)
+            return rows
+
+        recommender = OptimizedCFRecommender(
+            alpha=_safe_float(request.GET.get('alpha'), getattr(settings, 'RECOMMEND_OPT_ALPHA', 0.6)),
+            top_n_neighbors=_safe_int(request.GET.get('top_n'), getattr(settings, 'RECOMMEND_OPT_TOP_N_NEIGHBORS', 5)),
+            top_k_results=top_k,
+            score_threshold=_safe_float(request.GET.get('threshold'), getattr(settings, 'RECOMMEND_OPT_SCORE_THRESHOLD', 0.2)),
+            cluster_count=_safe_int(request.GET.get('cluster_count'), getattr(settings, 'RECOMMEND_OPT_CLUSTER_COUNT', 3)),
+        )
+        source = 'hot_fallback'
+        rows = []
+        if request.user.is_authenticated:
+            rows, source, params = recommender.recommend(request.user.id)
+        else:
+            params = recommender.params
+        rows = enrich(rows if rows else baseline_hot_recommend(top_k=top_k))
+        return JsonResponse({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'mode': 'optimized',
+                'novels': rows,
+                'source': source,
+                'params': params,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'code': 500, 'message': str(e), 'data': None})
 
 
 @csrf_exempt
@@ -1115,4 +1195,3 @@ def favorites_list(request):
             'message': str(e),
             'data': None
         })
-
